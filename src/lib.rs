@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 const MB: u64 = 1_048_576;
 const BATCH_SIZE: u64 = 10 * MB;
@@ -50,8 +50,7 @@ impl Batch {
 pub struct Primes {
     inner_slice: Box<Vec<bool>>,
     batch: Batch,
-    pub primes_found: Rc<RefCell<HashSet<u64>>>,
-    pub primes_ordered: Vec<u64>,
+    pub primes_vec: Rc<RefCell<Vec<u64>>>,
 }
 
 impl Primes {
@@ -62,8 +61,7 @@ impl Primes {
     pub fn with_batch_size(batch_size: u64) -> Self {
         let mut s = Self {
             inner_slice: Box::new(vec![true; batch_size as usize]),
-            primes_found: Rc::new(RefCell::new(HashSet::new())),
-            primes_ordered: Vec::new(),
+            primes_vec: Rc::new(RefCell::new(Vec::new())),
             batch: Batch::new(batch_size),
         };
         s.populate_first_batch();
@@ -108,8 +106,7 @@ impl Primes {
             })
             .collect();
 
-        self.primes_found.borrow_mut().extend(&primes);
-        self.primes_ordered.extend(&primes);
+        self.primes_vec.borrow_mut().extend(&primes);
     }
 
     /// This function will calculate and populate the next batch of primes by the specified batch size.
@@ -117,7 +114,7 @@ impl Primes {
         self.batch.update_batch(|current| current + 1);
         self.inner_slice.fill(true); // Reset the slice to all trues
 
-        for prime in self.primes_ordered.iter() {
+        for prime in self.primes_vec.borrow().iter() {
             let mul = (self.batch.offset as f64 / *prime as f64).ceil() as u64; // How much to multiply prime to reach offset (closest)
             let mut tmp = prime * mul;
 
@@ -140,11 +137,11 @@ impl Primes {
             self.populate_next_batch();
         }
 
-        self.primes_found.borrow().contains(&n)
+        self.primes_vec.borrow().binary_search(&n).is_ok()
     }
 
-    pub fn primes_found_set(&self) -> Rc<RefCell<HashSet<u64>>> {
-        self.primes_found.clone()
+    pub fn get_primes_vec(&self) -> Rc<RefCell<Vec<u64>>> {
+        self.primes_vec.clone()
     }
 }
 
@@ -176,10 +173,11 @@ impl Iterator for PrimesIterator<'_> {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.current >= self.primes.primes_ordered.len() {
+        let v = self.primes.get_primes_vec();
+        while self.current >= v.borrow().len() {
             self.primes.populate_next_batch();
         }
-        let p = self.primes.primes_ordered[self.current];
+        let p = v.borrow()[self.current];
         self.current += 1;
 
         Some(p)
