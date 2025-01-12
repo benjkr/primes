@@ -2,7 +2,8 @@
 
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
-const BATCH_SIZE: u64 = 0b10000000000000000000;
+const MB: u64 = 1_048_576;
+const BATCH_SIZE: u64 = 10 * MB;
 
 struct Batch {
     current: u64,
@@ -34,11 +35,23 @@ impl Batch {
     }
 }
 
+/// The Primes struct is responsible to find and save all the primes (so far).
+/// Its design uses batches to calculate the next set of primes with the previus ones.
+///
+/// Usage:
+/// ```
+/// use primes::Primes;
+///
+/// let mut primes = Primes::new();
+/// assert!(primes.is_prime(2));
+/// assert!(primes.is_prime(3));
+/// assert!(primes.is_prime(5));
+/// ```
 pub struct Primes {
     inner_slice: Box<Vec<bool>>,
+    batch: Batch,
     pub primes_found: Rc<RefCell<HashSet<u64>>>,
     pub primes_ordered: Vec<u64>,
-    batch: Batch,
 }
 
 impl Primes {
@@ -99,6 +112,7 @@ impl Primes {
         self.primes_ordered.extend(&primes);
     }
 
+    /// This function will calculate and populate the next batch of primes by the specified batch size.
     pub fn populate_next_batch(&mut self) {
         self.batch.update_batch(|current| current + 1);
         self.inner_slice.fill(true); // Reset the slice to all trues
@@ -118,6 +132,9 @@ impl Primes {
         self.save_primes();
     }
 
+    /// Returns weather `n` is prime or not.
+    ///
+    /// NOTE: If the prime isn't yet checked, it will calculate the batches until it.
     pub fn is_prime(&mut self, n: u64) -> bool {
         while n > (self.batch.current + 1) * BATCH_SIZE {
             self.populate_next_batch();
@@ -131,6 +148,25 @@ impl Primes {
     }
 }
 
+/// Struct to iterate over all the primes until `u64::MAX`.
+///
+/// Usage:
+/// ```
+/// use primes::Primes;
+///
+/// let mut primes = Primes::new();
+/// let mut primes_iter = primes.iter().take(3); // First 3 primes
+/// assert_eq!(primes_iter.next(), Some(2));
+/// assert_eq!(primes_iter.next(), Some(3));
+/// assert_eq!(primes_iter.next(), Some(5));
+/// assert_eq!(primes_iter.next(), None);
+///
+/// let mut primes_iter = primes.iter(); // All primes until u64::MAX
+/// assert_eq!(primes_iter.next(), Some(2));
+/// assert_eq!(primes_iter.next(), Some(3));
+/// assert_eq!(primes_iter.next(), Some(5));
+/// assert_eq!(primes_iter.next(), Some(7));
+/// ```
 pub struct PrimesIterator<'a> {
     primes: &'a mut Primes,
     current: usize,
