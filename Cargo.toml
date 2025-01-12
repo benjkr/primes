@@ -3,8 +3,5 @@ name = "primes"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-lru = "0.12.5"
-
 [profile.release]
 debug = true
