@@ -129,7 +129,7 @@ impl Primes {
         self.save_primes();
     }
 
-    /// Returns weather `n` is prime or not.
+    /// Returns whether `n` is prime or not.
     ///
     /// NOTE: If the prime isn't yet checked, it will calculate the batches until it.
     pub fn is_prime(&mut self, n: u64) -> bool {
